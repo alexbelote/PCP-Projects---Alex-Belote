@@ -1,0 +1,55 @@
+'* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+'*  Program Transmit: Sending a Wireless Keystroke                                                         *
+'*  Written By: Alex Belote                                                                                *
+'*  Date Created:  1 December 2023                                                                         *
+'*  Last Modified: 2 December 2023                                                                         *
+'*                                                                                                         *
+'*  This program will accept user input from a keyboard and then wirelessly transmit decimal values to a   *
+'*  receiver bot. Use this program in conjunction with a receiver program loaded onto the second bot that  *
+'*  can receive, interpret, and execute user commands entered via keystroke. This program was used in      *
+'*  conjunction with the course's final project program for wireless control our BOE-Bot.                  *
+'* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+' {$STAMP BS2}                              ' Stamp directive
+' {$PBASIC 2.5}                             ' Language directive
+
+X         VAR Byte                             ' Declare variable to store keystroke
+
+CHANNEL   CON $0E                              ' Communication channel is a constant
+                                               ' Use only $0C,0D,0E,0F,10,11,12,13,14,15,16,17
+BAUD      CON 84                               ' Constant baud rate, 9600, 8-N-1, non-inverted, on BS2
+
+TX        PIN 0                                ' Transmit Pin = black wire
+RX        PIN 2                                ' Receive Pin  = yellow wire
+
+GOSUB EstablishConnection                      ' Make sure devices are speaking to one another
+
+' Prompt user to enter a keystroke in the debug window
+DEBUG "Enter a keystroke to continue or 'Q' to quit:", CR
+
+' Accept a keystroke from the user and send it wirelessly to a remote bot
+DO UNTIL X = "q" OR X = "Q"                    ' Open loop
+  DEBUGIN X                                    ' Accept keyboard input
+  SEROUT  TX, BAUD, [DEC X, CR, CR]            ' Send value of X as decimal to receiver Boe-Bot
+                                               ' Second CR is added byte buffer for flow control example
+  PAUSE 20                                     ' Pause to make sure input keystroke is sent
+LOOP                                           ' Close loop
+
+DEBUG CR, "Exiting program...", CR             ' Warn user of program end
+END                                            ' End program to prevent additional subroutine executions
+
+'* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+'*                                            Subroutine Library                                           *
+'* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+' Subroutine establishes communication between transmitter and receiver bots
+EstablishConnection:
+  HIGH TX                                      ' Voltage on to transmit pin
+  DEBUG CLS, "Configuring XBee..."             ' Reassure user of proper execution
+  PAUSE 2000                                   ' Guard time for command sequence
+  SEROUT TX, BAUD,["+++"]                      ' Enter command mode
+  PAUSE 2000                                   ' Guard time for command sequence
+  SEROUT TX, BAUD, ["ATCH ", HEX CHANNEL, CR]  ' Set channel
+  PAUSE 2000                                   ' Guard time for command sequence
+  DEBUG "Configuration Complete!",CR           ' Reassure user that all is well
+RETURN                                         ' Return to main program
