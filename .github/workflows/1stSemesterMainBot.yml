@@ -1,0 +1,159 @@
+'{$STAMP BS2}
+'{$PBASIC 2.5}
+' * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+' *    Course Final Program: Wirelessly Controlled Glue Removal BOE-Bot                                                                           *
+' *    Written By: Alex Belote                                                                                                                    *
+' *    Date Created:  1 December 2023                                                                                                             *
+' *    Last Modified: 2 December 2023                                                                                                             *
+' *                                                                                                                                               *
+' *    The goal of this BOE-Bot is to remotely collect clumbs of "excess adhesive" which are inside of a windmill blade that is being produced.   *
+' *    This program will allow the user to remotely control the BOE-Bot through specific key inputs, when combined with a secondary program on a  *
+' *    second BOE-Bot. The imputs will be wirelessly transferred from one BOE-Bot to the other, which will allow the BOE-Bot to drive forward,    *
+' *    backward, turn left, turn right, close the maw and clamp onto an object, or open the maw and release a clamped object. The bot uses the    *
+' *    keys "w", "s", "a", "d", "r", and "l" to preform each command.                                                                             *
+' * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+                                                                                'Language directive
+
+
+
+
+
+
+
+
+
+
+' * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * --- CONSTANTS --- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+leftwheel PIN 12                                 'assign PIN 12 to left wheel
+rightwheel PIN 13                                'assign PIN 13 to right wheel
+CW CON 650                                       'clockwise spin value = 650
+CCW CON 850                                      'counterclockwise spin value = 850
+
+
+maw PIN 14                                       'assign PIN 14 to the "maw" (gripper attachment)
+
+CHANNEL   CON $0E                              ' Communication channel is a constant
+                                               ' Use only $0C,0D,0E,0F,10,11,12,13,14,15,16,17
+BAUD      CON 84                               ' Constant baud rate, 9600, 8-N-1, non-inverted, on BS2
+
+TX        PIN 0                                ' Transmit Pin = black wire
+RX        PIN 2                                ' Receive Pin  = yellow wire
+
+'* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * ---  VARIABLE  --- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+X VAR Byte
+' * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * --- MAIN PROGRAMS --- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+GOSUB establishconnection                      ' Make sure devices are speaking to one another
+
+DEBUG "Enter commands to navigate or Q to quit", CR                                                                       ' Accept input keystroke
+DO UNTIL X = "q" OR X = "Q"                                                                                               ' Run the program until the imput is "q" or "Q"
+     SERIN RX, BAUD, [DEC X]                                                                                              ' Accept signal from computor and convert decimal value back to imput value
+     IF X = "w" OR X = "W" THEN                                                                                           ' Stating that if the imput is "w" or "W", then execute a command
+            GOSUB forward                                                                                                 ' Call the subroutine forward
+     ELSEIF X = "s" OR X = "S" THEN                                                                                       ' Stating that if the imput is "s" or "S" and not "w" or "W", then execute a command
+            GOSUB backward                                                                                                ' Call the subroutine backward
+     ELSEIF X = "a" OR X = "A" THEN                                                                                       ' Stating that if the imput is "a" or "A" and not "w" or "W", then execute a command
+            GOSUB leftTurn                                                                                                ' Call the subroutine leftTurn
+     ELSEIF X = "d" OR X = "D" THEN                                                                                       ' Stating that if the imput is "d" or "D" and not "w" or "W", then execute a command
+            GOSUB rightTurn                                                                                               ' Call the subroutine rightTurn
+     ELSEIF X = "r" OR X = "R" THEN                                                                                       ' Stating that if the imput is "r" or "R" and not "w" or "W", then execute a command
+            GOSUB mawTighten                                                                                              ' Call the subroutine puttUp
+     ELSEIF X = "l" OR X = "L" THEN                                                                                       ' Stating that if the imput is "l" or "L" and not "w" or "W", then execute a command
+            GOSUB mawOpen                                                                                                 ' Call the subroutine puttDown
+   ENDIF                                                                                                                  ' Close the conditional
+LOOP                                                                                                                      ' Close the loop
+END                                                                                                                       ' End the program
+
+
+
+
+' Accept a keystroke from the user and send it wirelessly to a remote bot
+DO UNTIL X = "q" OR X = "Q"                    ' Open loop
+  DEBUGIN X                                    ' Accept keyboard input
+  SEROUT  TX, BAUD, [DEC X, CR, CR]            ' Send value of X as decimal to receiver Boe-Bot
+                                               ' Second CR is added byte buffer for flow control example
+  PAUSE 20                                     ' Pause to make sure input keystroke is sent
+LOOP                                           ' Close loop
+
+DEBUG CR, "Exiting program...", CR             ' Warn user of program end
+END                                            ' End program to prevent additional subroutine executions
+
+
+
+
+
+
+
+
+
+' * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * --- SUBROUTINE LIBRARY --- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+
+'                                                               ---  ---  FORWARD MOTION --- ---
+' Bot moves forward by spinning its right wheel clockwise and its left wheel counterclockwise
+forward:
+  PULSOUT rightwheel, CW                                                  ' Right wheel spins clockwise
+  PULSOUT leftwheel, CCW                                                  ' left wheel spins counterclockwise
+  PAUSE 20                                                                ' Pause 20ms to let servos catch up
+RETURN
+
+
+
+'                                                               ---  ---  BACKGROUND MOTION --- ---
+' Bot moves forward by spinning its right wheel clockwise and its left wheel counterclockwise
+backward:
+  PULSOUT rightwheel, CCW                                                 ' Right wheel spins counterclockwise
+  PULSOUT leftwheel, CW                                                   ' left wheel spins clockwise
+  PAUSE 20                                                                ' Pause 20ms to let servos catch up
+RETURN
+
+
+
+'                                                               ---  ---      LEFT TURN     --- ---
+' Bot sharply turns left with left and right wheels turning clockwise
+leftTurn:
+  PULSOUT rightwheel, CW                                                 ' Right wheel spins clockwise
+  PULSOUT leftwheel, CW                                                  ' left wheel spins clockwise
+  PAUSE 20                                                                ' Pause 20ms to let servos catch up
+RETURN
+
+
+
+'                                                               ---  ---      RIGHT TURN     --- ---
+' Bot sharply turns right with left and right wheels turning counterclockwise
+rightTurn:
+  PULSOUT rightwheel, CCW                                                 ' Right wheel spins counterclockwise
+  PULSOUT leftwheel, CCW                                                  ' left wheel spins counterclockwise
+  PAUSE 20                                                               ' Pause 20ms to let servos catch up
+RETURN
+
+
+'                                                               ---  ---      Tighten Maw     --- ---
+' Bot tightens the maw, bringing the jaws closer together, by rotating the putter servo clockwise
+mawTighten:
+  PULSOUT maw, CW                                                     ' maw closes as jaw servo spins clockwise
+RETURN
+
+
+
+'                                                               ---  ---      Open Maw     --- ---
+' Bot opens the maw, bringing the jaws farther apart, by rotating the putter servo counterclockwise
+mawOpen:
+  PULSOUT maw, CCW                                                   ' maw opens as jaw servo spins counterclockwise
+RETURN
+
+
+
+' Subroutine establishes communication between transmitter and receiver bots
+establishconnection:
+  HIGH TX                                      ' Voltage on to transmit pin
+  DEBUG CLS, "Configuring XBee..."             ' Reassure user of proper execution
+  PAUSE 2000                                   ' Guard time for command sequence
+  SEROUT TX, BAUD,["+++"]                      ' Enter command mode
+  PAUSE 2000                                   ' Guard time for command sequence
+  SEROUT TX, BAUD, ["ATCH ", HEX CHANNEL, CR]  ' Set channel
+  PAUSE 2000                                   ' Guard time for command sequence
+  DEBUG "Configuration Complete!",CR           ' Reassure user that all is well
+RETURN                                         ' Return to main program
+
